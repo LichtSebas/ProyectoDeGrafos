@@ -12,8 +12,34 @@ class Graph:
         self.dynamic_multiplier = 1.0
         self.congestion_zones = {}
 
+    def k_shortest_paths(self, start, end, k=3, avoid_types=None):
+        """
+        Devuelve las k rutas más cortas desde start hasta end.
+        avoid_types: lista de tipos de aristas a evitar, e.g., ['stairs']
+        """
+        if start not in self.adj or end not in self.adj:
+            return []
 
+        # heap de rutas: (costo, [camino])
+        heap = [(0, [start])]
+        results = []
 
+        while heap and len(results) < k:
+            cost, path = heapq.heappop(heap)
+            node = path[-1]
+
+            if node == end:
+                results.append(path)
+                continue
+
+            for neighbor, w, t in self.adj.get(node, []):
+                if neighbor in path:
+                    continue  # evitar ciclos
+                if avoid_types and t in avoid_types:
+                    continue
+                heapq.heappush(heap, (cost + w, path + [neighbor]))
+
+        return results
 
     def set_zone_congestion(self, node_or_edge, factor):
         """
@@ -128,6 +154,41 @@ class Graph:
 
         return dist[end], path[::-1]
 
+    def dijkstra_with_penalty(self, start, end, avoid_types=None):
+        """
+        avoid_types: lista de tipos de aristas a penalizar, ej: ["escalera"]
+        """
+        import heapq
+
+        avoid_types = avoid_types or []
+
+        # copia de pesos con penalización
+        dist = {node: float('inf') for node in self.nodes()}
+        prev = {node: None for node in self.nodes()}
+        dist[start] = 0
+        heap = [(0, start)]
+
+        while heap:
+            d, u = heapq.heappop(heap)
+            if d > dist[u]:
+                continue
+            for v, w, t in self.adj[u]:  # suponiendo tu adj lista: (vecino, peso, tipo)
+                # si es tipo a evitar, agregamos penalización
+                w_penalized = w + (50 if t in avoid_types else 0)  # ejemplo: 50 extra
+                if dist[u] + w_penalized < dist[v]:
+                    dist[v] = dist[u] + w_penalized
+                    prev[v] = u
+                    heapq.heappush(heap, (dist[v], v))
+
+        # reconstruir path
+        path = []
+        node = end
+        while node:
+            path.insert(0, node)
+            node = prev[node]
+        if path[0] != start:
+            return float('inf'), []  # no hay ruta
+        return dist[end], path
 
 # =====================================================================
 # =============   CONSTRUCCIÓN DEL CASINO COMPLETO  ===================

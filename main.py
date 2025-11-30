@@ -31,7 +31,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Casino Route Simulator (PyQt5)")
         self.setGeometry(100,100,1100,700)
-
+        self.all_paths = []      # Lista de rutas obtenidas
+        self.current_path_idx = 0 # Índice de la ruta actualmente mostrada
+        
         # data & graph
         self.graph = build_large_casino()
         self.current_path = []
@@ -76,6 +78,16 @@ class MainWindow(QMainWindow):
         self.cmb_end.setCurrentText("L3_RestauranteA")
         layout_route.addWidget(self.cmb_end)
         
+        # Tipo de ruta
+        layout_route.addWidget(QLabel("Tipo de ruta:"))
+        self.cmb_route_type = QComboBox()
+        self.cmb_route_type.addItems([
+            "Ruta más rápida",
+            "Evitar escaleras",
+            "Evitar ascensores"
+        ])
+        layout_route.addWidget(self.cmb_route_type)
+
         # Calculate route button
         btn_calc = QPushButton("Calcular Ruta")
         btn_calc.clicked.connect(self.calculate_route)
@@ -87,6 +99,10 @@ class MainWindow(QMainWindow):
         self.txt_info.setReadOnly(True)
         self.txt_info.setFixedHeight(160)
         layout_route.addWidget(self.txt_info)
+        
+        btn_next_route = QPushButton("Ver otra ruta corta")
+        btn_next_route.clicked.connect(self.next_route)
+        layout_route.addWidget(btn_next_route)
 
         right_panel.addWidget(grp_route)
 
@@ -244,19 +260,6 @@ class MainWindow(QMainWindow):
         self.txt_info.append("Pesos restaurados a sus valores originales.")
         self.show_floor(1)
 
-    def calculate_route(self):
-        start = self.cmb_start.currentText()
-        end = self.cmb_end.currentText()
-        dist, path = self.graph.dijkstra(start, end)
-        if dist == float('inf') or not path:
-            QMessageBox.warning(self, "Ruta", "No existe ruta entre los nodos seleccionados.")
-            self.txt_info.setPlainText("No hay ruta.")
-            return
-        self.current_path = path
-        self.txt_info.setPlainText(self.format_route_text(dist, path))
-        # show 3D view with highlighted route by default
-        self.show_3d(highlight=True)
-
     def format_route_text(self, dist, path):
         s = f"Ruta: {' -> '.join(path)}\n"
         s += f"Distancia total (coste): {dist:.2f}\n\n"
@@ -313,6 +316,55 @@ class MainWindow(QMainWindow):
         w = next((edge[1] for edge in self.graph.adj[a] if edge[0]==b), 0)
         self.txt_info.append(f"Paso {self.animation_index+1}: {a} -> {b} (coste: {w:.2f})")
         self.animation_index += 1
+    def calculate_route(self):
+        start = self.cmb_start.currentText()
+        end = self.cmb_end.currentText()
+        
+        # obtener tipo de ruta seleccionado
+        route_type = self.cmb_route_type.currentText()
+        avoid_types = []
+        if route_type == "Evitar escaleras":
+            avoid_types = ["stairs"]
+        elif route_type == "Evitar ascensores":
+            avoid_types = ["elevator"]
+
+        
+        # obtener 3 rutas más cortas usando penalización
+        self.all_paths = self.graph.k_shortest_paths(
+            start, end, k=3, avoid_types=avoid_types
+        )
+        self.current_path_idx = 0
+        
+        if not self.all_paths:
+            QMessageBox.warning(self, "Ruta", "No existe ruta entre los nodos seleccionados.")
+            self.txt_info.setPlainText("No hay ruta.")
+            return
+
+        # mostrar la primera ruta por defecto
+        self.show_current_route()
+
+
+    def show_current_route(self):
+        path = self.all_paths[self.current_path_idx]
+        self.current_path = path  # para animación y 3D
+
+        # construir texto
+        text = f"Ruta {self.current_path_idx+1} (coste: {sum(next(edge[1] for edge in self.graph.adj[path[j]] if edge[0]==path[j+1]) for j in range(len(path)-1)):.2f}): {' -> '.join(path)}\n"
+        text += "  Tramos:\n"
+        for j in range(len(path)-1):
+            a,b = path[j], path[j+1]
+            w = next(edge[1] for edge in self.graph.adj[a] if edge[0] == b)
+            text += f"    {a} -> {b} (coste: {w:.2f})\n"
+
+        self.txt_info.setPlainText(text)
+        self.show_3d(highlight=True)
+    def next_route(self):
+        if not self.all_paths:
+            QMessageBox.information(self, "Rutas", "Calcula una ruta primero.")
+            return
+        # siguiente ruta
+        self.current_path_idx = (self.current_path_idx + 1) % len(self.all_paths)
+        self.show_current_route()
 
 def main():
     app = QApplication(sys.argv)
