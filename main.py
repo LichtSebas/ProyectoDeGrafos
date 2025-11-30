@@ -1,7 +1,7 @@
 # main.py
 import sys
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QSlider, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QComboBox, QTextEdit, QSlider, QMessageBox, QListWidget, QAbstractItemView, QGroupBox
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         self.txt_info.setReadOnly(True)
         self.txt_info.setFixedHeight(160)
         right_panel.addWidget(self.txt_info)
-
+        
         # weight slider
         right_panel.addWidget(QLabel("Multiplicador de congestión (pesos):"))
         self.slider = QSlider(QtCore.Qt.Horizontal)
@@ -92,6 +92,33 @@ class MainWindow(QMainWindow):
         right_panel.addWidget(self.slider)
         self.lbl_mult = QLabel("Multiplicador actual: 1.00x")
         right_panel.addWidget(self.lbl_mult)
+
+        # Nodo origen de la arista
+        right_panel.addWidget(QLabel("Nodo inicio (arista):"))
+        self.cmb_edge_start = QComboBox()
+        self.cmb_edge_start.addItems(sorted(self.graph.nodes()))
+        self.cmb_edge_start.setCurrentText("L1_Entrada")
+        right_panel.addWidget(self.cmb_edge_start)
+
+        # Nodo fin de la arista
+        right_panel.addWidget(QLabel("Nodo fin (arista):"))
+        self.cmb_edge_end = QComboBox()
+        self.cmb_edge_end.addItems(sorted(self.graph.nodes()))
+        self.cmb_edge_end.setCurrentText("L1_Ascensor")
+        right_panel.addWidget(self.cmb_edge_end)
+
+        # Input para valor de congestión específico
+        right_panel.addWidget(QLabel("Valor de congestión para la arista:"))
+        self.spin_edge_congestion = QtWidgets.QSpinBox()
+        self.spin_edge_congestion.setMinimum(1)
+        self.spin_edge_congestion.setMaximum(100)
+        self.spin_edge_congestion.setValue(5)
+        right_panel.addWidget(self.spin_edge_congestion)
+        # Button to apply zone congestion
+        btn_apply_edge = QPushButton("Aplicar congestión a la arista")
+        btn_apply_edge.clicked.connect(self.apply_edge_congestion)
+        right_panel.addWidget(btn_apply_edge)
+
 
         # buttons to randomize/restore weights
         btn_rand = QPushButton("Randomizar congestión (aleatorio)")
@@ -157,6 +184,36 @@ class MainWindow(QMainWindow):
         fig = figure_3d(self.graph)
         self.win3d = Matplotlib3DWindow(fig)
         self.win3d.show()
+    def apply_zone_congestion(self):
+        selected_items = self.list_zones.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "Zonas", "Selecciona al menos un nodo para aplicar congestión.")
+            return
+
+        extra = self.spin_zone.value() / 1.0  # convertir a float si quieres decimales
+
+        for item in selected_items:
+            node = item.text()
+            self.graph.set_zone_congestion(node, extra)  # <--- importante, usa el método del graph
+
+        self.txt_info.append(f"Congestión de {extra:.2f} aplicada en: {', '.join([i.text() for i in selected_items])}")
+        self.show_3d(highlight=True)
+
+    def apply_edge_congestion(self):
+        start = self.cmb_edge_start.currentText()
+        end = self.cmb_edge_end.currentText()
+        value = self.spin_edge_congestion.value() / 1.0  # float
+
+        if start not in self.graph.adj or end not in self.graph.adj:
+            QMessageBox.warning(self, "Error", "Nodos inválidos.")
+            return
+
+        # aplicar congestión solo a esa arista
+        self.graph.set_zone_congestion((start, end), value)
+
+        self.txt_info.append(f"Congestión de {value:.2f} aplicada a la arista {start} -> {end}")
+        self.show_3d(highlight=True)
+
 
     def randomize_congestion(self):
         self.graph.randomize_congestion()
