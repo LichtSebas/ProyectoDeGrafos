@@ -10,7 +10,11 @@ def figure_floor(graph, floor, highlight_path=None, show_edges=True, show_weight
     ax.set_ylabel("Y")
     ax.grid(True)
 
-    nodes = [n for n,(x,y,f) in graph.positions_3d.items() if f == floor]
+    # Mapea el número de piso (1,2,3,4) al valor Z que usaste en graph.py
+    floor_z = {1: 1, 2: 5, 3: 9, 4: 13}
+    z = floor_z.get(floor, floor)  # por si acaso
+    nodes = [n for n,(x,y,f) in graph.positions_3d.items() if f == z]
+
 
     # ---------------------------
     # NODOS

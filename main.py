@@ -57,117 +57,135 @@ class MainWindow(QMainWindow):
         # controls
         right_panel.addWidget(QLabel("<b>Controles</b>"))
 
+        # --- Bloque Ruta ---
+        grp_route = QGroupBox("Ruta")
+        layout_route = QVBoxLayout()
+        grp_route.setLayout(layout_route)
+
         # origin & dest combos
-        right_panel.addWidget(QLabel("Origen:"))
+        layout_route.addWidget(QLabel("Origen:"))
         self.cmb_start = QComboBox()
         self.cmb_start.addItems(sorted(self.graph.nodes()))
         self.cmb_start.setCurrentText("L1_Entrada")
-        right_panel.addWidget(self.cmb_start)
+        layout_route.addWidget(self.cmb_start)
 
-        right_panel.addWidget(QLabel("Destino:"))
+
+        layout_route.addWidget(QLabel("Destino:"))
         self.cmb_end = QComboBox()
         self.cmb_end.addItems(sorted(self.graph.nodes()))
         self.cmb_end.setCurrentText("L3_RestauranteA")
-        right_panel.addWidget(self.cmb_end)
-
+        layout_route.addWidget(self.cmb_end)
+        
         # Calculate route button
         btn_calc = QPushButton("Calcular Ruta")
         btn_calc.clicked.connect(self.calculate_route)
-        right_panel.addWidget(btn_calc)
+        layout_route.addWidget(btn_calc)
 
         # text area for path description
-        right_panel.addWidget(QLabel("Descripción de la ruta:"))
+        layout_route.addWidget(QLabel("Descripción de la ruta:"))
         self.txt_info = QTextEdit()
         self.txt_info.setReadOnly(True)
         self.txt_info.setFixedHeight(160)
-        right_panel.addWidget(self.txt_info)
+        layout_route.addWidget(self.txt_info)
+
+        right_panel.addWidget(grp_route)
+
         
-        # weight slider
-        right_panel.addWidget(QLabel("Multiplicador de congestión (pesos):"))
-        self.slider = QSlider(QtCore.Qt.Horizontal)
-        self.slider.setMinimum(10)   # represent 0.1
-        self.slider.setMaximum(400)  # represent 4.0
-        self.slider.setValue(100)    # 1.0
-        self.slider.valueChanged.connect(self.slider_changed)
-        right_panel.addWidget(self.slider)
-        self.lbl_mult = QLabel("Multiplicador actual: 1.00x")
-        right_panel.addWidget(self.lbl_mult)
+        # --- Bloque Congestión ---
+        grp_congestion = QGroupBox("Congestión")
+        layout_congestion = QVBoxLayout()
+        grp_congestion.setLayout(layout_congestion)
 
         # Nodo origen de la arista
-        right_panel.addWidget(QLabel("Nodo inicio (arista):"))
+        layout_congestion.addWidget(QLabel("Nodo inicio (arista):"))
         self.cmb_edge_start = QComboBox()
         self.cmb_edge_start.addItems(sorted(self.graph.nodes()))
         self.cmb_edge_start.setCurrentText("L1_Entrada")
-        right_panel.addWidget(self.cmb_edge_start)
+        layout_congestion.addWidget(self.cmb_edge_start)
 
         # Nodo fin de la arista
-        right_panel.addWidget(QLabel("Nodo fin (arista):"))
+        layout_congestion.addWidget(QLabel("Nodo fin (arista):"))
         self.cmb_edge_end = QComboBox()
         self.cmb_edge_end.addItems(sorted(self.graph.nodes()))
         self.cmb_edge_end.setCurrentText("L1_Ascensor")
-        right_panel.addWidget(self.cmb_edge_end)
+        layout_congestion.addWidget(self.cmb_edge_end)
 
-        # Input para valor de congestión específico
-        right_panel.addWidget(QLabel("Valor de congestión para la arista:"))
+        # Input valor de congestión
+        layout_congestion.addWidget(QLabel("Valor de congestión para la arista:"))
         self.spin_edge_congestion = QtWidgets.QSpinBox()
         self.spin_edge_congestion.setMinimum(1)
         self.spin_edge_congestion.setMaximum(100)
         self.spin_edge_congestion.setValue(5)
-        right_panel.addWidget(self.spin_edge_congestion)
-        # Button to apply zone congestion
+        layout_congestion.addWidget(self.spin_edge_congestion)
+
+        # Botón aplicar congestión
         btn_apply_edge = QPushButton("Aplicar congestión a la arista")
         btn_apply_edge.clicked.connect(self.apply_edge_congestion)
-        right_panel.addWidget(btn_apply_edge)
+        layout_congestion.addWidget(btn_apply_edge)
 
-
-        # buttons to randomize/restore weights
+        # Botones random/restore
         btn_rand = QPushButton("Randomizar congestión (aleatorio)")
         btn_rand.clicked.connect(self.randomize_congestion)
-        right_panel.addWidget(btn_rand)
+        layout_congestion.addWidget(btn_rand)
 
         btn_restore = QPushButton("Restaurar pesos originales")
         btn_restore.clicked.connect(self.restore_weights)
-        right_panel.addWidget(btn_restore)
+        layout_congestion.addWidget(btn_restore)
 
-        # view buttons
-        right_panel.addWidget(QLabel("<b>Vistas</b>"))
+        right_panel.addWidget(grp_congestion)
+
+
+        # --- Bloque Vistas ---
+        grp_views = QGroupBox("Vistas")
+        layout_views = QVBoxLayout()
+        grp_views.setLayout(layout_views)
+
         btn_floor1 = QPushButton("Ver Piso 1")
         btn_floor1.clicked.connect(lambda: self.show_floor(1))
-        right_panel.addWidget(btn_floor1)
+        layout_views.addWidget(btn_floor1)
 
         btn_floor2 = QPushButton("Ver Piso 2")
         btn_floor2.clicked.connect(lambda: self.show_floor(2))
-        right_panel.addWidget(btn_floor2)
+        layout_views.addWidget(btn_floor2)
 
         btn_floor3 = QPushButton("Ver Piso 3")
         btn_floor3.clicked.connect(lambda: self.show_floor(3))
-        right_panel.addWidget(btn_floor3)
+        layout_views.addWidget(btn_floor3)
 
         btn_floor4 = QPushButton("Ver Piso 4")
         btn_floor4.clicked.connect(lambda: self.show_floor(4))
-        right_panel.addWidget(btn_floor4)
+        layout_views.addWidget(btn_floor4)
 
         btn_mold = QPushButton("Ver Molde (solo nodos)")
         btn_mold.clicked.connect(self.show_mold)
-        right_panel.addWidget(btn_mold)
+        layout_views.addWidget(btn_mold)
 
         btn_3d = QPushButton("Ver 3D (ruta resaltada)")
         btn_3d.clicked.connect(lambda: self.show_3d(highlight=True))
-        right_panel.addWidget(btn_3d)
+        layout_views.addWidget(btn_3d)
 
         btn_3d_interactive = QPushButton("Ver 3D Interactivo")
         btn_3d_interactive.clicked.connect(self.open_3d_interactive)
-        right_panel.addWidget(btn_3d_interactive)
+        layout_views.addWidget(btn_3d_interactive)
 
-        # animation controls
-        right_panel.addWidget(QLabel("<b>Animación</b>"))
+        right_panel.addWidget(grp_views)
+
+
+        # --- Bloque Animación ---
+        grp_animation = QGroupBox("Animación")
+        layout_animation = QVBoxLayout()
+        grp_animation.setLayout(layout_animation)
+
         btn_start_anim = QPushButton("Iniciar animación paso-a-paso")
         btn_start_anim.clicked.connect(self.start_animation)
-        right_panel.addWidget(btn_start_anim)
+        layout_animation.addWidget(btn_start_anim)
 
         btn_stop_anim = QPushButton("Detener animación")
         btn_stop_anim.clicked.connect(self.stop_animation)
-        right_panel.addWidget(btn_stop_anim)
+        layout_animation.addWidget(btn_stop_anim)
+
+        right_panel.addWidget(grp_animation)
+
 
         # initial draw
         self.show_floor(1)
