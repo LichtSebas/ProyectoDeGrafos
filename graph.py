@@ -2,6 +2,7 @@
 import heapq
 import random
 import networkx as nx
+import json
 
 class Graph:
     def __init__(self):
@@ -114,10 +115,90 @@ class Graph:
         for edge in self.adj[b]:
             if edge[0] == a:
                 edge[1] = new_weight
+    
+    # ----------------------------------------------------------------------
+    # Prebua de nodos y aristas
+    # ----------------------------------------------------------------------
+    
+    def add_node(self, name, pos=(0,0,0)):
+        if name in self.adj:
+            return False  # nodo ya existe
+        self.adj[name] = []
+        self.positions_3d[name] = pos
+        return True
 
+    def remove_node(self, name):
+        if name not in self.adj:
+            return False
+        # eliminar todas las aristas que apuntan a este nodo
+        for neighbor, edges in self.adj.items():
+            self.adj[neighbor] = [e for e in edges if e[0] != name]
+        # eliminar nodo y posición
+        del self.adj[name]
+        if name in self.positions_3d:
+            del self.positions_3d[name]
+        # eliminar pesos originales asociados
+        keys_to_delete = [k for k in self.original_weights if name in k]
+        for k in keys_to_delete:
+            del self.original_weights[k]
+        return True
+
+    def remove_edge(self, a, b):
+        if a in self.adj:
+            self.adj[a] = [e for e in self.adj[a] if e[0] != b]
+        if b in self.adj:
+            self.adj[b] = [e for e in self.adj[b] if e[0] != a]
+        self.original_weights.pop((a,b), None)
+        self.original_weights.pop((b,a), None)
+
+    # ==========================================================
+    # GUARDAR Y CARGAR ESCENARIOS EN JSON
+    # ==========================================================
+    def save_scenario(self, filename):
+        data = {
+            "positions": self.positions_3d,  # {nodo: [x,y,z]}
+            "edges": [],  # lista de aristas
+        }
+
+        for a in self.adj:
+            for b, w, t in self.adj[a]:
+                # para evitar duplicados: solo guarda a < b
+                if a < b:
+                    data["edges"].append({
+                        "start": a,
+                        "end": b,
+                        "weight": w,
+                        "type": t
+                    })
+        
+        with open(filename, "w") as f:
+            json.dump(data, f, indent=4)
+        print(f"Escenario guardado en {filename}")
+
+
+    def load_scenario(self, filename):
+        with open(filename, "r") as f:
+            data = json.load(f)
+        
+        # limpiar grafo actual
+        self.adj = {}
+        self.positions_3d = {}
+        self.original_weights = {}
+
+        # restaurar posiciones
+        self.positions_3d = {k: tuple(v) for k,v in data.get("positions", {}).items()}
+
+        # restaurar aristas
+        for edge in data.get("edges", []):
+            a, b = edge["start"], edge["end"]
+            w, t = edge["weight"], edge["type"]
+            self.add_edge(a, b, w, t)
+        
+        print(f"Escenario cargado desde {filename}")
     # ----------------------------------------------------------------------
     # DIJKSTRA
     # ----------------------------------------------------------------------
+    
     def dijkstra(self, start, end):
         if start not in self.adj or end not in self.adj:
             return float('inf'), []
@@ -189,6 +270,8 @@ class Graph:
         if path[0] != start:
             return float('inf'), []  # no hay ruta
         return dist[end], path
+
+
 
 # =====================================================================
 # =============   CONSTRUCCIÓN DEL CASINO COMPLETO  ===================
