@@ -34,6 +34,9 @@ class MainWindow(QMainWindow):
         self.all_paths = []      # Lista de rutas obtenidas
         self.current_path_idx = 0 # Índice de la ruta actualmente mostrada
         
+        # people for animation
+        self.people = []
+
         # data & graph
         self.graph = build_large_casino()
         self.current_path = []
@@ -571,6 +574,18 @@ class MainWindow(QMainWindow):
                 cmb.addItems(nodes)
             self.show_3d()
             QMessageBox.information(self, "Cargar", f"Escenario cargado desde {filename}")
+    # people animation
+    def generate_people(self, num_people=5):
+        import random
+        self.people = []
+        for _ in range(num_people):
+            # elige una ruta al azar entre las calculadas
+            if not self.all_paths:
+                continue
+            path = random.choice(self.all_paths)
+            color = (random.random(), random.random(), random.random())  # RGB random
+            self.people.append({"path": path, "index": 0, "color": color})
+        self.txt_info.append(f"{len(self.people)} personas generadas para animación.")
 
 def main():
     app = QApplication(sys.argv)

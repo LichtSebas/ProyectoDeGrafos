@@ -12,7 +12,7 @@ class Graph:
         self.original_weights = {}  # (a,b) -> w
         self.dynamic_multiplier = 1.0
         self.congestion_zones = {}
-
+    
     def k_shortest_paths(self, start, end, k=3, avoid_types=None):
         """
         Devuelve las k rutas más cortas desde start hasta end.
