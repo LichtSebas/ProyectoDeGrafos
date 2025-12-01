@@ -33,13 +33,19 @@ Simulador interactivo de rutas dentro de un casino multi-piso, con visualizació
 =============================================
 ⚡ Instalación rápida
 =============================================
-git clone https://github.com/tuusuario/casino-route-simulator.git
-cd casino-route-simulator
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-pip install -r requirements.txt
-python main.py
+-git clone https://github.com/tuusuario/casino-route-simulator.git
+
+-cd casino-route-
+
+-python -m venv venv
+
+-source venv/bin/activate  # Linux/Mac
+
+-venv\Scripts\activate     # Windows
+
+-pip install -r requirements.txt
+
+-python main.py
 
 =============================================
 🎨 Uso
@@ -59,11 +65,17 @@ python main.py
 📂 Estructura
 =============================================
 main.py
+
 graph.py
+
 views.py
+
 viewer_matplotlib_3d.py
+
 scenarios/    (no aplicado porque es opcional)
+
 requirements.txt
+
 README.md
 
 =============================================
