@@ -196,13 +196,20 @@ class MainWindow(QMainWindow):
         btn_3d_interactive.clicked.connect(self.open_3d_interactive)
         layout_views.addWidget(btn_3d_interactive)
 
-        right_panel.addWidget(grp_views)
 
         btn_heatmap = QPushButton("Mapa de calor de congestión")
         btn_heatmap.clicked.connect(self.show_congestion_heatmap_3d)
         layout_views.addWidget(btn_heatmap)
 
+        btn_export = QPushButton("Exportar vista actual a PNG")
+        btn_export.clicked.connect(self.export_current_view)
+        layout_views.addWidget(btn_export)
 
+        btn_export_all = QPushButton("Exportar TODO a PDF")
+        btn_export_all.clicked.connect(self.export_all_to_pdf)
+        layout_views.addWidget(btn_export_all)
+
+        right_panel.addWidget(grp_views)
         # --- Bloque Animación ---
         grp_animation = QGroupBox("Animación")
         layout_animation = QVBoxLayout()
@@ -328,8 +335,12 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "Nodos inválidos.")
             return
 
-        # aplicar congestión solo a esa arista
-        self.graph.set_zone_congestion((start, end), value)
+        # opción A: reemplazar peso con el valor ingresado (lo que pediste)
+        ok = self.graph.set_edge_congestion(start, end, value, absolute=True)
+        if not ok:
+            QMessageBox.warning(self, "Error", "Arista no existe.")
+            return
+
 
         self.txt_info.append(f"Congestión de {value:.2f} aplicada a la arista {start} -> {end}")
         self.show_3d(highlight=True)
@@ -586,6 +597,94 @@ class MainWindow(QMainWindow):
             color = (random.random(), random.random(), random.random())  # RGB random
             self.people.append({"path": path, "index": 0, "color": color})
         self.txt_info.append(f"{len(self.people)} personas generadas para animación.")
+    def export_current_view(self):
+        fig = self.canvas_widget.canvas.figure
+
+        if fig is None:
+            QMessageBox.warning(self, "Exportar", "No hay una vista para exportar.")
+            return
+
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Exportar imagen", "", "PNG (*.png)"
+        )
+
+        if not filename:
+            return
+
+        try:
+            fig.savefig(filename, dpi=300)
+            QMessageBox.information(self, "Exportar", f"Imagen guardada en:\n{filename}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo exportar la imagen:\n{e}")
+    def export_all_views(self, folder_path):
+        import matplotlib.pyplot as plt
+        saved_files = []
+
+        # Exportar pisos 1–4
+        for floor in [1, 2, 3, 4]:
+            fig = figure_floor(self.graph, floor, highlight_path=self.current_path, show_edges=True, show_weights=True)
+            fname = f"{folder_path}/piso_{floor}.png"
+            fig.savefig(fname, dpi=300)
+            saved_files.append(fname)
+            plt.close(fig)
+
+        # Exportar molde
+        fig = figure_mold(self.graph)
+        fname = f"{folder_path}/molde.png"
+        fig.savefig(fname, dpi=300)
+        saved_files.append(fname)
+        plt.close(fig)
+
+        # Exportar vista 3D
+        fig = figure_3d(self.graph, highlight_path=self.current_path, show_weights=False)
+        fname = f"{folder_path}/vista_3d.png"
+        fig.savefig(fname, dpi=300)
+        saved_files.append(fname)
+        plt.close(fig)
+
+        return saved_files
+    def create_pdf(self, images, output_pdf):
+        from matplotlib.backends.backend_pdf import PdfPages
+        from PIL import Image
+
+        with PdfPages(output_pdf) as pdf:
+            for img in images:
+                # Abrir imagen PNG en calidad original
+                image = Image.open(img)
+
+                # Crear una figura con el tamaño EXACTO de la imagen
+                fig_w = image.width / 100  # convertir px → pulgadas (100 DPI)
+                fig_h = image.height / 100
+
+                import matplotlib.pyplot as plt
+                fig = plt.figure(figsize=(fig_w, fig_h), dpi=100)
+
+                ax = fig.add_subplot(111)
+                ax.imshow(image)
+                ax.axis('off')
+
+                pdf.savefig(fig, dpi=300)  # <-- 300 DPI reales
+                plt.close(fig)
+
+    def export_all_to_pdf(self):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Selecciona carpeta destino")
+
+        if not folder:
+            return
+
+        # 1. exporta todas las vistas
+        images = self.export_all_views(folder)
+
+        # 2. crea el pdf final
+        output_pdf = f"{folder}/casino_rutas_export.pdf"
+        self.create_pdf(images, output_pdf)
+
+        QMessageBox.information(
+            self,
+            "PDF generado",
+            f"Todas las vistas fueron exportadas correctamente.\n\nPDF creado:\n{output_pdf}"
+        )
+
 
 def main():
     app = QApplication(sys.argv)

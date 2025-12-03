@@ -15,32 +15,40 @@ class Graph:
     
     def k_shortest_paths(self, start, end, k=3, avoid_types=None):
         """
-        Devuelve las k rutas más cortas desde start hasta end.
-        avoid_types: lista de tipos de aristas a evitar, e.g., ['stairs']
+        K rutas más cortas reales usando Dijkstra repetido.
+        Respeta pesos dinámicos y congestión.
         """
-        if start not in self.adj or end not in self.adj:
-            return []
+        avoid_types = avoid_types or []
+        all_paths = []
 
-        # heap de rutas: (costo, [camino])
-        heap = [(0, [start])]
-        results = []
+        # una copia auxiliar temporal
+        backup = {}
 
-        while heap and len(results) < k:
-            cost, path = heapq.heappop(heap)
-            node = path[-1]
+        for i in range(k):
+            # ejecutar dijkstra normal
+            dist, path = self.dijkstra(start, end)
 
-            if node == end:
-                results.append(path)
-                continue
+            # si no hay camino, se acabó
+            if not path:
+                break
 
-            for neighbor, w, t in self.adj.get(node, []):
-                if neighbor in path:
-                    continue  # evitar ciclos
-                if avoid_types and t in avoid_types:
-                    continue
-                heapq.heappush(heap, (cost + w, path + [neighbor]))
+            all_paths.append(path)
 
-        return results
+            # eliminar temporalmente una arista del camino encontrado
+            if len(path) > 1:
+                a, b = path[0], path[1]
+                # guardar la arista para restaurarla
+                backup[(a, b)] = next(e for e in self.adj[a] if e[0] == b)
+                backup[(b, a)] = next(e for e in self.adj[b] if e[0] == a)
+                # removerla
+                self.remove_edge(a, b)
+
+        # restaurar aristas borradas
+        for (a, b), edge in backup.items():
+            self.adj[a].append(edge)
+
+        return all_paths
+
 
     def set_zone_congestion(self, node_or_edge, factor):
         """
@@ -92,7 +100,7 @@ class Graph:
     def randomize_specific_congestion(self, nodes):
         for node in nodes:
             factor = random.uniform(1.5, 3.0)  # congestión aleatoria
-            self.graph.set_zone_congestion(node, factor)
+            self.set_zone_congestion(node, factor)
 
     def randomize_congestion(self, extra_min=1, extra_max=8):
         for (a,b), w in self.original_weights.items():
@@ -117,9 +125,44 @@ class Graph:
                 edge[1] = new_weight
     
     # ----------------------------------------------------------------------
-    # Prebua de nodos y aristas
+    # Prueba de nodos y aristas
     # ----------------------------------------------------------------------
-    
+    def set_edge_congestion(self, a, b, value, absolute=False):
+        """
+        Ajusta el peso de la arista a<->b.
+
+        - a, b: nodos
+        - value: si absolute==True, nuevo peso absoluto (ej: 5 -> peso = 5)
+                si absolute==False, valor adicional (ej: 5 -> peso = original + 5)
+        - absolute: Boolean. True = reemplazar, False = sumar al original.
+        """
+        # chequear existencia en original_weights (asegura que la arista existe)
+        orig = self.original_weights.get((a, b))
+        if orig is None:
+            # arista no existe
+            return False
+
+        if absolute:
+            new_weight = float(value)
+            # si quieres que esto sea permanente, actualizamos original_weights
+            self.original_weights[(a, b)] = new_weight
+            self.original_weights[(b, a)] = new_weight
+        else:
+            # sumamos al peso original (como tu versión previa)
+            new_weight = float(self.original_weights[(a, b)]) + float(value)
+
+        # actualizar a -> b
+        for edge in self.adj.get(a, []):
+            if edge[0] == b:
+                edge[1] = new_weight
+
+        # actualizar b -> a (grafo no dirigido)
+        for edge in self.adj.get(b, []):
+            if edge[0] == a:
+                edge[1] = new_weight
+
+        return True
+
     def add_node(self, name, pos=(0,0,0)):
         if name in self.adj:
             return False  # nodo ya existe
@@ -210,30 +253,33 @@ class Graph:
 
         while pq:
             d, u = heapq.heappop(pq)
+
             if d > dist[u]:
                 continue
+
             if u == end:
                 break
 
-            for v, w, t in self.adj.get(u, []):  # <-- ahora con 3 valores
+            for v, w, t in self.adj.get(u, []):  # 3 valores: nodo, peso, tipo
                 nd = d + w
                 if nd < dist[v]:
                     dist[v] = nd
                     prev[v] = u
                     heapq.heappush(pq, (nd, v))
 
-        # reconstrucción del camino
+        # 🚫 VALIDACIÓN SEGURA: NO EXISTE CAMINO
+        if dist[end] == float('inf'):
+            return float('inf'), []   # <--- Cancela correctamente
+
+        # 🔄 Reconstrucción del camino
         path = []
         node = end
-        if prev[node] is None and node != start:
-            if dist[end] == float('inf'):
-                return float('inf'), []
-
         while node is not None:
             path.append(node)
             node = prev[node]
 
         return dist[end], path[::-1]
+
 
     def dijkstra_with_penalty(self, start, end, avoid_types=None):
         """
@@ -281,7 +327,7 @@ def build_large_casino():
     g = Graph()
 
     # ==========================================================
-    # PISO 1 — ÁREA AMPLIA CON TRAGAMONEDAS Y BARRA
+    # PISO 1 — ÁREA AMPLIA CON TRAGAMONEDAS Y BARRA (Punto A, Punto B, Costo, Tipo de arista)
     # ==========================================================
     g.add_edge("L1_Entrada", "L1_Vestibulo", 3, "normal")
     g.add_edge("L1_Vestibulo", "L1_TragamonedasA", 4, "normal")
@@ -383,7 +429,7 @@ def build_large_casino():
         "L1_Ascensor": (3, 7, 1),
         "L1_Escaleras": (9, 7, 1),
 
-        # Piso 2 (subimos Z = 3)
+        # Piso 2 (subimos Z = 5)
         "L2_MesasVIP": (1, 1, 5),
         "L2_BarraVIP": (6, 3, 5),
         "L2_BlackjackA": (10, 3, 5),
@@ -393,7 +439,7 @@ def build_large_casino():
         "L2_Ascensor": (3, 7, 5),
         "L2_Escaleras": (10, 7, 5),
 
-        # Piso 3 (Z = 5)
+        # Piso 3 (Z = 9)
         "L3_Auditorio": (1, 1, 9),
         "L3_Caja": (6, 3, 9),
         "L3_RestauranteA": (11, 3, 9),
@@ -402,7 +448,7 @@ def build_large_casino():
         "L3_Ascensor": (3, 7, 9),
         "L3_Escaleras": (10, 7, 9),
 
-        # Piso 4 (Z = 7)
+        # Piso 4 (Z = 13)
         "L4_Suites": (1, 1, 13),
         "L4_Pasarela": (7, 3, 13),
         "L4_Penthouse": (13, 3, 13),

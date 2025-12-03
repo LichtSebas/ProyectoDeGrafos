@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 import numpy as np
 
+# ----------------------------------------
+#     VISTA 2D POR PISO
+# ----------------------------------------
 def figure_floor(graph, floor, highlight_path=None, show_edges=True, show_weights=False):
-    fig, ax = plt.subplots(figsize=(6,5))
+    fig, ax = plt.subplots(figsize=(10,8))
     ax.set_title(f"Piso {floor} — Grafo (vista 2D)")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -27,23 +30,31 @@ def figure_floor(graph, floor, highlight_path=None, show_edges=True, show_weight
     # ---------------------------
     # ARISTAS EN EL MISMO PISO
     # ---------------------------
+    # ---------------------------
+    # ARISTAS EN EL MISMO PISO
+    # ---------------------------
     if show_edges:
         for node in nodes:
-            x,y,_ = graph.positions_3d[node]
+            x, y, _ = graph.positions_3d[node]
 
             # ahora las aristas tienen 3 valores: neighbor, weight, type
             for neighbor, w, t in graph.adj.get(node, []):
                 if neighbor in nodes:
+
+                    # 🔥 evitar duplicar aristas (solo dibujar A→B cuando A < B)
+                    if node >= neighbor:
+                        continue
+
                     nx, ny, _ = graph.positions_3d[neighbor]
 
-                    # Si es escalera/ascensor → línea punteada
+                    # Escalera/ascensor → línea punteada
                     style = "--" if t in ("stairs", "elevator") else "-"
 
-                    ax.plot([x,nx], [y,ny], style, color='gray', alpha=0.7)
+                    ax.plot([x, nx], [y, ny], style, color='gray', alpha=0.7)
 
                     if show_weights:
-                        mx,my = (x+nx)/2, (y+ny)/2
-                        ax.text(mx, my, f"{w:.1f}", fontsize=7, color='green')
+                        mx, my = (x + nx) / 2, (y + ny) / 2
+                        ax.text(mx, my, f"{w:.1f}", fontsize=11, color='green')
 
     # ---------------------------
     # CAMINO RESALTADO
@@ -104,7 +115,8 @@ def figure_3d(graph, highlight_path=None, show_weights=False):
 
             if show_weights:
                 mx,my,mz = (x1+x2)/2, (y1+y2)/2, (f1+f2)/2
-                ax.text(mx, my, mz, f"{w:.1f}", fontsize=7, color='green')
+                ax.text(mx, my, mz, f"{w:.1f}", fontsize=11, color='green', fontweight="bold")
+
 
     # ---------------------------
     # CAMINO RESALTADO 3D

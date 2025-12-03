@@ -8,13 +8,61 @@ Simulador interactivo de rutas dentro de un casino multi-piso, con visualizació
 🚀 Características
 =============================================
 
-➤ Rutas óptimas: calcula rutas más rápidas, evita escaleras o ascensores.
+🧭 Cálculo de rutas
 
-➤ Congestión dinámica: aplica valores manuales o aleatorios a aristas y nodos.
+- Ruta más rápida usando Dijkstra.
 
-➤ Vistas interactivas: pisos 1-4, molde de nodos, 3D resaltando rutas, mapa de calor de congestión.
+- Evitar escaleras.
 
-➤ Edición de grafo: agregar/eliminar nodos y aristas, guardar/cargar escenarios en JSON.
+- Evitar ascensores.
+
+- Cálculo de k rutas más cortas (k=3).
+
+- Visualización detallada tramo a tramo.
+
+🔥 Congestión dinámica
+
+- Aplicación de congestión por arista o zonas (nodos).
+
+- Congestión aleatoria.
+
+- Restauración de pesos originales.
+
+- Mapa de calor 3D que muestra congestión por color.
+
+🎨 Vistas interactivas
+
+- Vista de pisos 1, 2, 3 y 4.
+
+- Vista de molde (solo nodos).
+
+- Vista 3D con ruta resaltada.
+
+- Vista 3D completamente interactiva con rotación.
+
+- Animación paso a paso del recorrido.
+
+- Animación simultánea de “personas” siguiendo rutas (soporte incluido).
+
+🧱 Editor de grafo completo
+
+- Agregar nodos (con coordenadas X, Y, Z).
+
+- Eliminar nodos.
+
+- Agregar aristas con peso y tipo:
+
+    - normal
+
+    - escalera
+
+    - ascensor
+
+- Eliminar aristas.
+
+- Guardar escenario en JSON.
+
+- Cargar escenarios desde JSON.
 
 =============================================
 🛠 Tecnologías
@@ -22,61 +70,79 @@ Simulador interactivo de rutas dentro de un casino multi-piso, con visualizació
 ✎ Python 3.10+
 
 ✎ PyQt5
- – GUI
+ – Interfaz gráfica (GUI)
 
 ✎ Matplotlib
  – Visualización 2D/3D
 
 ✎ NetworkX
- – Grafos
+ – Algoritmos de grafos
+
+✎ JSON
+ – Guardado de escenarios
 
 =============================================
 ⚡ Instalación rápida
 =============================================
--git clone https://github.com/tuusuario/casino-route-simulator.git
+- git clone https://github.com/tuusuario/casino-route-simulator.git
+- cd casino-route-simulator
 
--cd casino-route-
+# Crear entorno virtual
+- python -m venv venv
 
--python -m venv venv
+# Activar entorno
+- source venv/bin/activate     # Linux/macOS
+- venv\Scripts\activate        # Windows
 
--source venv/bin/activate  # Linux/Mac
+# Instalar dependencias
+- pip install -r requirements.txt
 
--venv\Scripts\activate     # Windows
-
--pip install -r requirements.txt
-
--python main.py
+# Ejecutar el simulador
+- python main.py
 
 =============================================
 🎨 Uso
 =============================================
 
-1. Selecciona origen y destino.
+1. Selecciona origen y destino en el panel derecho.
 
-2. Elige tipo de ruta y presiona Calcular Ruta.
+2. Selecciona el tipo de ruta (rápida, evitando escaleras, evitando ascensores).
 
-3. Explora vistas 2D/3D o animación paso a paso.
+3. Presiona Calcular Ruta.
+
+4. Explora vistas 2D/3D o animación paso a paso.
 
 4. Modifica nodos, aristas y congestión.
 
 5. Guarda o carga escenarios en JSON.
 
+6. Visualiza la congestión en un mapa de calor 3D.
+
 =============================================
 📂 Estructura
 =============================================
-main.py
+casino-route-simulator/
+│
+├── main.py                     
+├── graph.py                    
+├── views.py                    
+├── viewer_matplotlib_3d.py     
+│
+├── scenarios/                  # Escenarios JSON (opcional)
+├── requirements.txt
+└── README.md
 
-graph.py
+=============================================
+💡 Próximas mejoras sugeridas
+=============================================
 
-views.py
+- Soporte para guardar animaciones como GIF/MP4.
 
-viewer_matplotlib_3d.py
+- Exportación de rutas a PDF.
 
-scenarios/    (no aplicado porque es opcional)
+- Modo nocturno (dark mode).
 
-requirements.txt
-
-README.md
+- Algoritmo A* con heurística por pisos.
 
 =============================================
 📌 Licencia
@@ -84,4 +150,5 @@ README.md
 
 MIT License
 
-Copyright (c) 2025 Licht (Sebastián Gonzales Aroni)
+Copyright (c) 2025 
+Licht (Sebastián Gonzales Aroni)
