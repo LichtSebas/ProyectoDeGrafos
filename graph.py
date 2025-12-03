@@ -12,43 +12,6 @@ class Graph:
         self.original_weights = {}  # (a,b) -> w
         self.dynamic_multiplier = 1.0
         self.congestion_zones = {}
-    
-    def k_shortest_paths(self, start, end, k=3, avoid_types=None):
-        """
-        K rutas más cortas reales usando Dijkstra repetido.
-        Respeta pesos dinámicos y congestión.
-        """
-        avoid_types = avoid_types or []
-        all_paths = []
-
-        # una copia auxiliar temporal
-        backup = {}
-
-        for i in range(k):
-            # ejecutar dijkstra normal
-            dist, path = self.dijkstra(start, end)
-
-            # si no hay camino, se acabó
-            if not path:
-                break
-
-            all_paths.append(path)
-
-            # eliminar temporalmente una arista del camino encontrado
-            if len(path) > 1:
-                a, b = path[0], path[1]
-                # guardar la arista para restaurarla
-                backup[(a, b)] = next(e for e in self.adj[a] if e[0] == b)
-                backup[(b, a)] = next(e for e in self.adj[b] if e[0] == a)
-                # removerla
-                self.remove_edge(a, b)
-
-        # restaurar aristas borradas
-        for (a, b), edge in backup.items():
-            self.adj[a].append(edge)
-
-        return all_paths
-
 
     def set_zone_congestion(self, node_or_edge, factor):
         """
@@ -242,9 +205,19 @@ class Graph:
     # DIJKSTRA
     # ----------------------------------------------------------------------
     
-    def dijkstra(self, start, end):
+    # -------------------------------
+    # K rutas más cortas y Dijkstra
+    # -------------------------------
+
+    def dijkstra(self, start, end, avoid_types=None):
+        """
+        Dijkstra que permite evitar ciertos tipos de aristas.
+        avoid_types: lista de strings, p.ej ["stairs", "elevator"]
+        """
         if start not in self.adj or end not in self.adj:
             return float('inf'), []
+
+        avoid_types = avoid_types or []
 
         dist = {n: float('inf') for n in self.adj}
         prev = {n: None for n in self.adj}
@@ -253,32 +226,68 @@ class Graph:
 
         while pq:
             d, u = heapq.heappop(pq)
-
             if d > dist[u]:
                 continue
-
             if u == end:
                 break
 
-            for v, w, t in self.adj.get(u, []):  # 3 valores: nodo, peso, tipo
+            for v, w, t in self.adj.get(u, []):
+                if t in avoid_types:
+                    continue  # ignorar este tipo de arista
                 nd = d + w
                 if nd < dist[v]:
                     dist[v] = nd
                     prev[v] = u
                     heapq.heappush(pq, (nd, v))
 
-        # 🚫 VALIDACIÓN SEGURA: NO EXISTE CAMINO
-        if dist[end] == float('inf'):
-            return float('inf'), []   # <--- Cancela correctamente
-
-        # 🔄 Reconstrucción del camino
+        # reconstruir camino
         path = []
-        node = end
-        while node is not None:
-            path.append(node)
-            node = prev[node]
+        u = end
+        while u is not None:
+            path.insert(0, u)
+            u = prev[u]
 
-        return dist[end], path[::-1]
+        if path and path[0] == start:
+            return dist[end], path
+        else:
+            return float('inf'), []
+
+
+    def k_shortest_paths(self, start, end, k=3, avoid_types=None):
+        """
+        Calcula k rutas más cortas usando Dijkstra repetido.
+        Evita tipos de aristas según avoid_types.
+        """
+        avoid_types = avoid_types or []
+        all_paths = []
+        backup_removed = []
+
+        # crear copia temporal de las aristas
+        def temporarily_remove_edge(a, b):
+            edge_a = next((e for e in self.adj[a] if e[0] == b), None)
+            edge_b = next((e for e in self.adj[b] if e[0] == a), None)
+            if edge_a and edge_b:
+                self.adj[a].remove(edge_a)
+                self.adj[b].remove(edge_b)
+                backup_removed.append((a, b, edge_a, edge_b))
+
+        for i in range(k):
+            _, path = self.dijkstra(start, end, avoid_types=avoid_types)
+            if not path:
+                break
+
+            all_paths.append(path)
+
+            # eliminar temporalmente la primera arista de la ruta encontrada
+            if len(path) > 1:
+                temporarily_remove_edge(path[0], path[1])
+
+        # restaurar aristas eliminadas
+        for a, b, edge_a, edge_b in backup_removed:
+            self.adj[a].append(edge_a)
+            self.adj[b].append(edge_b)
+
+        return all_paths
 
 
     def dijkstra_with_penalty(self, start, end, avoid_types=None):
@@ -316,8 +325,53 @@ class Graph:
         if path[0] != start:
             return float('inf'), []  # no hay ruta
         return dist[end], path
+    def calculate_real_time(self, path, time_per_meter=3.0):
+        """
+        Calcula el tiempo real total y por tramo basándose en:
+        - peso de arista = metros
+        - time_per_meter = segundos por metro
+        - escalera multiplica x1.5
+        - ascensor multiplica x0.7 (más rápido)
+        """
 
+        if not path or len(path) < 2:
+            return 0, []
 
+        total_time = 0
+        breakdown = []
+
+        for i in range(len(path)-1):
+            a = path[i]
+            b = path[i+1]
+
+            # buscar la arista en adj
+            edge = next((e for e in self.adj[a] if e[0] == b), None)
+            if edge is None:
+                continue
+
+            meters = edge[1]
+            edge_type = edge[2]
+
+            # tiempo base
+            t = meters * time_per_meter  
+
+            # multiplicadores
+            if edge_type == "stairs":
+                t *= 1.5
+            elif edge_type == "elevator":
+                t *= 0.7
+
+            total_time += t
+
+            breakdown.append({
+                "from": a,
+                "to": b,
+                "meters": meters,
+                "type": edge_type,
+                "time": t
+            })
+
+        return total_time, breakdown
 
 # =====================================================================
 # =============   CONSTRUCCIÓN DEL CASINO COMPLETO  ===================
@@ -336,8 +390,8 @@ def build_large_casino():
     g.add_edge("L1_RuletasA", "L1_Barra", 3, "normal")
 
     # Ascensor y escaleras piso 1
-    g.add_edge("L1_Entrada", "L1_Ascensor", 1, "elevator")
-    g.add_edge("L1_TragamonedasA", "L1_Escaleras", 1, "stairs")
+    g.add_edge("L1_Entrada", "L1_Ascensor", 1, "normal")
+    g.add_edge("L1_TragamonedasA", "L1_Escaleras", 1, "stairsnormal")
 
     # Cruces Piso 1 (Tragamonedas ↔ Barra)
     g.add_edge("L1_TragamonedasA", "L1_Barra", 5, "normal")  # ruta diagonal
@@ -352,8 +406,8 @@ def build_large_casino():
     g.add_edge("L2_SalaPoker", "L2_Pasillo", 3, "normal")
 
     # Ascensor y escaleras piso 2
-    g.add_edge("L2_Ascensor", "L2_MesasVIP", 2, "elevator")
-    g.add_edge("L2_Escaleras", "L2_BlackjackA", 2, "stairs")
+    g.add_edge("L2_Ascensor", "L2_MesasVIP", 2, "normal")
+    g.add_edge("L2_Escaleras", "L2_BlackjackA", 2, "normal")
 
     # Cruces Piso 2 (VIP ↔ Blackjack)
     g.add_edge("L2_BarraVIP", "L2_BlackjackB", 3, "normal")
@@ -366,8 +420,8 @@ def build_large_casino():
     g.add_edge("L3_RestauranteB", "L3_Terraza", 5, "normal")
 
     # Ascensor y escaleras piso 3
-    g.add_edge("L3_Ascensor", "L3_Auditorio", 2, "elevator")
-    g.add_edge("L3_Escaleras", "L3_Caja", 2, "stairs")
+    g.add_edge("L3_Ascensor", "L3_Auditorio", 2, "normal")
+    g.add_edge("L3_Escaleras", "L3_Caja", 2, "normal")
 
     # Cruces Piso 3 (Auditorio ↔ Restaurante B)
     g.add_edge("L3_Auditorio", "L3_RestauranteB", 6, "normal")
@@ -377,8 +431,8 @@ def build_large_casino():
     g.add_edge("L4_Suites", "L4_Pasarela", 3, "normal")
     g.add_edge("L4_Pasarela", "L4_Penthouse", 4, "normal")
 
-    g.add_edge("L4_Ascensor", "L4_Suites", 1, "elevator")
-    g.add_edge("L4_Escaleras", "L4_Suites", 2, "stairs")
+    g.add_edge("L4_Ascensor", "L4_Suites", 1, "normal")
+    g.add_edge("L4_Escaleras", "L4_Suites", 2, "normal")
 
     # ==========================================================
     # CONEXIONES VERTICALES (MEJOR SEPARADAS)
@@ -398,8 +452,8 @@ def build_large_casino():
     g.set_position("Nodo_Central1", 5, 3, 1)
     g.add_edge("L1_TragamonedasB", "Nodo_Central1", 2, "normal")
     g.add_edge("L1_Barra", "Nodo_Central1", 2, "normal")
-    g.add_edge("L1_Escaleras", "L2_MesasVIP", 5, "stairs")  # ruta alternativa más corta
-    g.add_edge("L2_Escaleras", "L3_Caja", 4, "stairs")      # otro cruce
+    g.add_edge("L1_Escaleras", "L2_MesasVIP", 5, "normal")  # ruta alternativa más corta
+    g.add_edge("L3_Escaleras", "L3_Caja", 4, "normal")      # otro cruce
 
     # ==========================================================
     # CONEXIONES NUEVAS (CONEXION DE NODOS YA EXISTENTES)
@@ -411,8 +465,8 @@ def build_large_casino():
     g.add_edge("L3_Ascensor", "L3_Escaleras", 2, "normal")
     g.add_edge("L3_Ascensor", "L3_RestauranteB", 3, "normal")  # cruce diagonal
     # rutas alternativas verticales
-    g.add_edge("L1_Ascensor", "L2_Escaleras", 4, "stairs")  
-    g.add_edge("L2_Ascensor", "L3_Escaleras", 4, "stairs")  
+    g.add_edge("L1_Ascensor", "L2_Escaleras", 4, "normal")  
+    g.add_edge("L2_Ascensor", "L3_Escaleras", 4, "normal")  
 
     # ==========================================================
     # POSICIONES SEPARADAS (MÁS LIMPIAS Y AMPLIAS)

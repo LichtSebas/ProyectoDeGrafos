@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
         self.spin_edge_weight = QtWidgets.QDoubleSpinBox(); self.spin_edge_weight.setRange(0,1000); self.spin_edge_weight.setValue(1)
         layout_edit.addWidget(QLabel("Peso:")); layout_edit.addWidget(self.spin_edge_weight)
 
-        self.cmb_edge_type = QComboBox(); self.cmb_edge_type.addItems(["normal", "escalera", "ascensor"])
+        self.cmb_edge_type = QComboBox(); self.cmb_edge_type.addItems(["normal", "stairs", "elevator"])
         layout_edit.addWidget(QLabel("Tipo de arista:")); layout_edit.addWidget(self.cmb_edge_type)
 
         btn_add_edge = QPushButton("Agregar arista")
@@ -484,6 +484,7 @@ class MainWindow(QMainWindow):
         self.all_paths = self.graph.k_shortest_paths(
             start, end, k=3, avoid_types=avoid_types
         )
+        
         self.current_path_idx = 0
         
         if not self.all_paths:
@@ -499,16 +500,44 @@ class MainWindow(QMainWindow):
         path = self.all_paths[self.current_path_idx]
         self.current_path = path  # para animación y 3D
 
+        # calcular coste total
+        total_cost = sum(
+            next(edge[1] for edge in self.graph.adj[path[j]] if edge[0] == path[j+1])
+            for j in range(len(path)-1)
+        )
+
+        # calcular tiempo total y detalle por tramo (si existe la función)
+        if hasattr(self.graph, "calculate_real_time"):
+            total_time, detail = self.graph.calculate_real_time(path)
+        else:
+            total_time = None
+            detail = None
+
         # construir texto
-        text = f"Ruta {self.current_path_idx+1} (coste: {sum(next(edge[1] for edge in self.graph.adj[path[j]] if edge[0]==path[j+1]) for j in range(len(path)-1)):.2f}): {' -> '.join(path)}\n"
-        text += "  Tramos:\n"
+        text = f"Ruta {self.current_path_idx+1}\n"
+        text += f"Coste total: {total_cost:.2f}\n"
+
+        if total_time is not None:
+            text += f"Tiempo total estimado: {total_time:.2f} segundos\n"
+
+        text += f"Camino: {' -> '.join(path)}\n\n"
+        text += "Tramos:\n"
+
         for j in range(len(path)-1):
-            a,b = path[j], path[j+1]
+            a, b = path[j], path[j+1]
             w = next(edge[1] for edge in self.graph.adj[a] if edge[0] == b)
-            text += f"    {a} -> {b} (coste: {w:.2f})\n"
+
+            # tiempo del tramo si existe detail
+            if detail:
+                t = detail[j]["time"]
+                t_type = detail[j]["type"]
+                text += f"  {a} -> {b}  | coste: {w:.2f}  | tiempo: {t:.2f}s  | tipo: {t_type}\n"
+            else:
+                text += f"  {a} -> {b}  | coste: {w:.2f}\n"
 
         self.txt_info.setPlainText(text)
         self.show_3d(highlight=True)
+
     def next_route(self):
         if not self.all_paths:
             QMessageBox.information(self, "Rutas", "Calcula una ruta primero.")
